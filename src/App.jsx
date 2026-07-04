@@ -1369,28 +1369,17 @@ function ChatPage({ user, messages, setMessages }) {
     setLoading(true);
     try {
       const history = [...messages, { role: "user", content: msg }];
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1000,
-          system: `You are Rio, a compassionate AI mental wellness companion. Your voice is warm, empathetic, and gently encouraging — like a trusted friend who also understands psychology. You help users explore their emotions, practice self-compassion, and develop healthy coping strategies.
-
-Guidelines:
-- Always validate feelings before offering advice
-- Use gentle, ocean-inspired metaphors naturally (not forcefully)  
-- Ask thoughtful follow-up questions to understand the person better
-- Suggest grounding exercises, journaling, or breathing when appropriate
-- Never diagnose or replace professional therapy — encourage it when needed
-- Keep responses concise (2-4 paragraphs) and conversational
-- The user's name is ${user?.nickname || "Friend"}
-- Be warm but not overly cheerful — meet people where they are emotionally`,
-          messages: history.map(m => ({ role: m.role, content: m.content }))
+       
+          messages: history,
+          user,
         })
       });
       const data = await res.json();
-      const reply = data.content?.map(c => c.text || "").join("") || "I'm here with you. Could you tell me more about how you're feeling?";
+      const reply = data.reply;
       setMessages(prev => [...prev, { role: "assistant", content: reply }]);
     } catch {
       setMessages(prev => [...prev, { role: "assistant", content: "I'm having trouble connecting right now. Please take a slow breath — I'll be back with you shortly. 🌊" }]);
