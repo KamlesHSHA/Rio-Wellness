@@ -510,18 +510,8 @@ export default function RioApp() {
   const [user, setUser] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
   const theme = darkMode ? THEMES.dark : THEMES.light;
-  const [moodEntries, setMoodEntries] = useState([
-    { date: "2025-06-18", mood: 4, energy: 3, stress: 2, sleep: 4, reflection: "Had a good morning walk." },
-    { date: "2025-06-19", mood: 3, energy: 2, stress: 4, sleep: 3, reflection: "Work was heavy today." },
-    { date: "2025-06-20", mood: 5, energy: 4, stress: 2, sleep: 5, reflection: "Spent time with friends." },
-    { date: "2025-06-21", mood: 2, energy: 2, stress: 5, sleep: 2, reflection: "Anxious about deadlines." },
-    { date: "2025-06-22", mood: 4, energy: 3, stress: 3, sleep: 4, reflection: "Meditated in the morning." },
-    { date: "2025-06-23", mood: 4, energy: 4, stress: 2, sleep: 4, reflection: "Productive and calm." },
-  ]);
-  const [journalEntries, setJournalEntries] = useState([
-    { id: 1, title: "Finding peace in small moments", content: "Today I noticed the way sunlight filtered through the leaves. It reminded me that beauty exists even in the most ordinary moments...", date: "2025-06-23" },
-    { id: 2, title: "Working through anxiety", content: "I've been feeling overwhelmed lately. Writing this out helps me see that my fears are often bigger in my mind than in reality...", date: "2025-06-21" },
-  ]);
+  const [moodEntries, setMoodEntries] = useState([]);
+  const [journalEntries, setJournalEntries] = useState([]);
   const [chatMessages, setChatMessages] = useState([
     { role: "assistant", content: "Hello! I'm Rio, your wellness companion 🌊 How are you feeling today? I'm here to listen, support, and help you navigate whatever you're experiencing." }
   ]);
@@ -924,11 +914,22 @@ function AppShell({ children, activeNav, onNav, user, darkMode,theme }) {
 
 // ── DASHBOARD HOME ─────────────────────────────────────────────────────────
 function DashboardHome({ user, moodEntries, journalEntries, onNavigate, setActiveNav,darkMode }) {
-  const latest = moodEntries[moodEntries.length - 1];
-  const streak = 6;
+  const latest =
+  moodEntries.length > 0
+    ? moodEntries[moodEntries.length - 1]
+    : null;
+  const streak = moodEntries.length;
+  const journalCount = journalEntries.length;
+  const latestJournal =
+  journalEntries.length > 0
+    ? journalEntries[0]
+    : null;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const moodObj = MOODS.find(m => m.value === latest?.mood) || MOODS[2];
+  const moodObj =
+  latest
+    ? MOODS.find(m => m.value === latest.mood)
+    : null;
 
   return (
     <div>
@@ -946,8 +947,8 @@ function DashboardHome({ user, moodEntries, journalEntries, onNavigate, setActiv
     
     darkMode={darkMode} style={{ padding: "20px 24px" }}>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 8 }}>CURRENT MOOD</div>
-          <div style={{ fontSize: 36 }}>{moodObj.emoji}</div>
-          <div style={{ color: "white", fontSize: 14, fontWeight: 600, marginTop: 4 }}>{moodObj.label}</div>
+          <div style={{ fontSize: 36 }}>{moodObj ? moodObj.emoji : "🌊"}</div>
+          <div style={{ color: "white", fontSize: 14, fontWeight: 600, marginTop: 4 }}>{moodObj ? moodObj.label : "No check-in yet"}</div>
         </Glass>
         <Glass
     
@@ -960,20 +961,20 @@ function DashboardHome({ user, moodEntries, journalEntries, onNavigate, setActiv
     
     darkMode={darkMode} style={{ padding: "20px 24px" }}>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 8 }}>JOURNAL ENTRIES</div>
-          <div style={{ color: "white", fontSize: 40, fontWeight: 700, lineHeight: 1 }}>{journalEntries.length}</div>
-          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>this month</div>
+          <div style={{ color: "white", fontSize: 40, fontWeight: 700, lineHeight: 1 }}>{journalCount}</div>
+          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>{journalCount === 1 ? "entry" : "entries"}</div>
         </Glass>
       </div>
 
       {/* Latest journal */}
-      {journalEntries[0] && (
+      {latestJournal && (
         <Glass
     
     darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20 }}>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 12 }}>LATEST JOURNAL ENTRY</div>
-          <h3 style={{ color: "white", margin: "0 0 8px", fontSize: 16, fontWeight: 600 }}>{journalEntries[0].title}</h3>
-          <p style={{ color: "rgba(255,255,255,0.65)", margin: "0 0 12px", fontSize: 13, lineHeight: 1.6 }}>{journalEntries[0].content.slice(0, 120)}...</p>
-          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{journalEntries[0].date}</span>
+          <h3 style={{ color: "white", margin: "0 0 8px", fontSize: 16, fontWeight: 600 }}>{latestJournal.title}</h3>
+          <p style={{ color: "rgba(255,255,255,0.65)", margin: "0 0 12px", fontSize: 13, lineHeight: 1.6 }}>{latestJournal.content.slice(0, 120)}...</p>
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{latestJournal.date}</span>
         </Glass>
       )}
 
@@ -1214,15 +1215,45 @@ function JournalPage({ user, entries, setEntries,darkMode }) {
 function AnalyticsPage({ moodEntries, journalEntries,darkMode }) {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const moodData = moodEntries.slice(-6).map((e, i) => ({ day: days[i], mood: e.mood, stress: e.stress, sleep: e.sleep }));
-  const avgMood = (moodEntries.reduce((s, e) => s + e.mood, 0) / moodEntries.length).toFixed(1);
-  const avgStress = (moodEntries.reduce((s, e) => s + e.stress, 0) / moodEntries.length).toFixed(1);
-  const avgSleep = (moodEntries.reduce((s, e) => s + e.sleep, 0) / moodEntries.length).toFixed(1);
+  const hasData = moodEntries.length > 0;
+  const avgMood = hasData
+  ? (
+      moodEntries.reduce((s, e) => s + e.mood, 0) /
+      moodEntries.length
+    ).toFixed(1)
+  : "—";
 
-  const insights = [
-    avgStress <= 3 ? "✅ Your stress levels have decreased compared to last week — great progress!" : "⚠️ Stress has been elevated this week. Consider a grounding exercise.",
-    avgMood >= 3.5 ? "😊 Your mood trend is positive — keep up what's working!" : "💙 Your mood has dipped recently. Remember, rough tides pass.",
-    avgSleep >= 3.5 ? "🌙 You've been sleeping well — that's the foundation of wellness." : "😴 Sleep quality could use some attention. Try the Ocean Breathing exercise.",
-  ];
+const avgStress = hasData
+  ? (
+      moodEntries.reduce((s, e) => s + e.stress, 0) /
+      moodEntries.length
+    ).toFixed(1)
+  : "—";
+
+const avgSleep = hasData
+  ? (
+      moodEntries.reduce((s, e) => s + e.sleep, 0) /
+      moodEntries.length
+    ).toFixed(1)
+  : "—";
+
+ const insights = hasData
+  ? [
+      avgStress <= 3
+        ? "✅ Your stress levels have been manageable this week."
+        : "⚠️ Your stress seems a little elevated lately.",
+
+      avgMood >= 3.5
+        ? "😊 Your mood has been fairly positive."
+        : "💙 It's okay to have difficult days.",
+
+      avgSleep >= 3.5
+        ? "🌙 Your sleep has been supporting your wellbeing."
+        : "😴 Better sleep could help improve your mood."
+    ]
+  : [
+      "🌊 Complete your first Daily Check-In to begin seeing your wellness insights."
+    ];
 
   return (
     <div>
@@ -1250,34 +1281,134 @@ function AnalyticsPage({ moodEntries, journalEntries,darkMode }) {
     
     darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20 }}>
         <h3 style={{ color: "white", margin: "0 0 20px", fontSize: 15, fontWeight: 600 }}>Weekly Mood Trend</h3>
-        <MiniBarChart data={moodData} key1="mood" color="#4A90E2" label="Mood" />
+        {hasData ? (
+  <MiniBarChart
+    data={moodData}
+    key1="mood"
+    color="#4A90E2"
+    label="Mood"
+  />
+) : (
+  <div
+    style={{
+      height: 180,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "rgba(255,255,255,0.6)",
+      fontSize: 15,
+      textAlign: "center"
+    }}
+  >
+    🌊 Complete your first Daily Check-In to see your mood trend.
+  </div>
+)}
       </Glass>
 
       <Glass
     
     darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20 }}>
         <h3 style={{ color: "white", margin: "0 0 20px", fontSize: 15, fontWeight: 600 }}>Stress & Sleep Trends</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <div>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 12 }}>STRESS (lower is better)</div>
-            <MiniBarChart data={moodData} key1="stress" color="#E27A4A" label="Stress" />
-          </div>
-          <div>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 12 }}>SLEEP QUALITY</div>
-            <MiniBarChart data={moodData} key1="sleep" color="#4AE2B8" label="Sleep" />
-          </div>
+      {hasData ? (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 20,
+      }}
+    >
+      <div>
+        <div
+          style={{
+            color: "rgba(255,255,255,0.6)",
+            fontSize: 12,
+            marginBottom: 12,
+          }}
+        >
+          STRESS (lower is better)
         </div>
-      </Glass>
+
+        <MiniBarChart
+          data={moodData}
+          key1="stress"
+          color="#E27A4A"
+          label="Stress"
+        />
+      </div>
+
+      <div>
+        <div
+          style={{
+            color: "rgba(255,255,255,0.6)",
+            fontSize: 12,
+            marginBottom: 12,
+          }}
+        >
+          SLEEP QUALITY
+        </div>
+
+        <MiniBarChart
+          data={moodData}
+          key1="sleep"
+          color="#4AE2B8"
+          label="Sleep"
+        />
+      </div>
+    </div>
+  ) : (
+    <div
+      style={{
+        height: 180,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        color: "rgba(255,255,255,0.6)",
+        fontSize: 15,
+        lineHeight: 1.6,
+      }}
+    >
+      🌙 Complete your first Daily Check-In to unlock your stress and sleep insights.
+    </div>
+  )}
+</Glass>
 
       <Glass
     
     darkMode={darkMode} style={{ padding: "24px 28px" }}>
         <h3 style={{ color: "white", margin: "0 0 16px", fontSize: 15, fontWeight: 600 }}>💡 Insights</h3>
-        {insights.map((ins, i) => (
-          <div key={i} style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,0.08)", marginBottom: 10, color: "rgba(255,255,255,0.85)", fontSize: 13, lineHeight: 1.6 }}>
-            {ins}
-          </div>
-        ))}
+       {hasData ? (
+  insights.map((ins, i) => (
+    <div
+      key={i}
+      style={{
+        padding: "12px 16px",
+        marginBottom: 12,
+        borderRadius: 12,
+        background: "rgba(255,255,255,0.08)",
+        color: "white",
+        fontSize: 14,
+        lineHeight: 1.6,
+      }}
+    >
+      {ins}
+    </div>
+  ))
+) : (
+  <div
+    style={{
+      textAlign: "center",
+      padding: "30px",
+      color: "rgba(255,255,255,0.65)",
+      lineHeight: 1.7,
+    }}
+  >
+    💡 Rio will begin noticing patterns after a few Daily Check-Ins.
+    <br />
+    Right now there's nothing to analyze—and that's perfectly okay.
+  </div>
+)}
+        
       </Glass>
     </div>
   );
@@ -1521,6 +1652,7 @@ function ChatPage({ user, messages, setMessages,darkMode }) {
   console.log("ChatPage darkMode:", darkMode);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [typingText, setTypingText] = useState("");
   const bottomRef = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -1536,31 +1668,269 @@ function ChatPage({ user, messages, setMessages,darkMode }) {
 
   setMessages(history);
   setLoading(true);
+  setTypingText("Rio is thinking...");
 
   try {
     const prompt = `
-You are Rio, an empathetic AI wellness companion.
+You are Rio.
 
-Rules:
-- Never diagnose diseases.
-- Never replace therapy.
-- Be warm and calming.
-- Validate feelings before giving advice.
-- Keep responses under 200 words.
-- Suggest breathing, journaling or grounding when appropriate.
-- Speak naturally and conversationally.
-- Address the user as ${user?.nickname || "Friend"}.
+Rio is not an assistant.
+Rio is a calm companion.
+
+Your purpose is to help people feel understood, not to solve every problem.
+
+PERSONALITY
+
+• Calm
+• Warm
+• Gentle
+• Curious
+• Patient
+• Hopeful
+• Emotionally intelligent
+
+Rio speaks like someone sitting beside the user with a cup of tea.
+
+Rio never sounds robotic.
+
+Rio never sounds like ChatGPT.
+
+Rio never lectures.
+
+Rio never overwhelms users.
+
+Rio listens first.
+
+Rio gives advice only after understanding the user.
+
+CONVERSATION STYLE
+
+Most replies should be around 40–80 words.
+
+Some replies may be shorter.
+
+Some replies may be longer if the user shares something deeply emotional.
+
+Prioritize warmth over brevity.
+
+Never dump lots of information.
+
+Always validate the user's feelings.
+
+Whenever appropriate, ask ONE thoughtful follow-up question.
+
+Never ask multiple questions.
+
+Never say:
+
+"I'm sorry to hear..."
+
+"It's completely understandable..."
+
+"As an AI..."
+
+"I recommend..."
+
+Avoid repetitive therapy phrases.
+
+Speak naturally.
+
+FIRST RESPONSE RULE
+
+When the user shares a problem, Rio should NOT immediately solve it.
+
+Rio should first:
+1. Notice the emotion.
+2. Reflect it naturally.
+3. Ask ONE gentle follow-up question.
+
+Rio should avoid giving advice until it understands the situation better.
+
+Rio is curious before being helpful.
+
+PACE OF THE CONVERSATION
+
+Rio never tries to fix everything in one reply.
+
+Rio takes one small conversational step at a time.
+
+Rio gives only ONE idea or suggestion per message.
+
+If Rio asks a question,
+it should usually wait for the user's answer before giving advice.
+
+Rio should sound like someone having a conversation,
+not someone delivering instructions.
+
+GOOD EXAMPLE
+
+User:
+"I'm stressed because of exams."
+
+Rio:
+"That sounds like a lot to carry.
+
+Are the exams close, or has the stress been building for a while?"
+
+----------------------
+
+User:
+"They're next week."
+
+Rio:
+"That makes sense.
+
+What's worrying you the most—
+the preparation or the pressure to do well?"
+
+----------------------
+
+User:
+"I don't think I'm ready."
+
+Rio:
+"That feeling can be really heavy.
+
+Would it help if we figured out one tiny thing you could do today instead of trying to tackle everything at once?"
+
+Avoid responses like:
+
+"I'm sorry you're feeling stressed.
+Try breathing exercises, journaling,
+taking breaks,
+staying hydrated,
+getting enough sleep,
+and talking to friends."
+
+Never overload the user with multiple suggestions.
+
+One conversation.
+One emotion.
+One idea.
+
+EMOTIONAL FLOW
+
+Every response should follow this order:
+
+1. Acknowledge the emotion.
+2. Validate the feeling.
+3. Respond naturally.
+4. Ask one gentle question OR offer one small suggestion.
+
+Never skip to advice immediately.
+
+GOOD EXAMPLES
+
+User:
+"I'm stressed."
+
+Rio:
+"That sounds heavy. 💙
+
+What's been taking up most of your headspace today?"
+
+---------------
+
+User:
+"I failed my exam."
+
+Rio:
+"Ouch... that must have hurt.
+
+Do you want to talk about what happened?"
+
+---------------
+
+User:
+"I can't sleep."
+
+Rio:
+"That sounds exhausting.
+
+Is your mind racing, or do you just find it hard to relax?"
+
+---------------
+
+If the user shares something positive,
+
+celebrate with them.
+
+If the user shares something painful,
+
+slow down.
+
+If the user sounds overwhelmed,
+
+respond gently.
+
+Never rush into giving breathing exercises.
+
+Never rush into giving solutions.
+
+Your goal is to make the user feel heard.
+
+Rio remembers the flow of the conversation.
+
+Rio does NOT greet the user in every reply.
+
+Rio speaks as if continuing the same conversation.
+
+If the user is simply answering a question, Rio should respond naturally instead of restarting.
+
+Avoid repeating phrases like:
+"I'm here for you."
+"Your feelings are valid."
+"I understand."
+
+Use different wording every time.
+Every response should feel like a caring person sitting beside the user.
+
+Rio should acknowledge the feeling naturally.
+
+Rio should briefly reflect what the user said.
+
+Rio should then ask one gentle question.
+
+Rio should not sound cold.
+
+Rio should not sound overly formal.
+
+Rio should not sound like customer support.
+
+Rio should never end a response after only one sentence unless the user asks a yes/no question.
 
 User:
 ${msg}
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
+  model: "gemini-2.5-flash",
+  contents: prompt,
+  config: {
+    temperature: 0.7,
+    maxOutputTokens: 1000,
+  },
+});
 
-    const reply = response.text;
+   const reply = response.text;
+
+// Human-like thinking delay
+await new Promise(resolve =>
+  setTimeout(resolve, 700 + Math.random() * 900)
+);
+
+// Show typing dots first
+setTypingText("...");
+await new Promise(resolve => setTimeout(resolve, 500));
+
+// Start typing the actual reply
+setTypingText("");
+
+for (let i = 0; i <= reply.length; i++) {
+  setTypingText(reply.slice(0, i));
+  await new Promise(resolve => setTimeout(resolve, 18));
+}
+
 
     setMessages(prev => [
       ...prev,
@@ -1613,6 +1983,55 @@ ${msg}
             </div>
           </div>
         ))}
+        {typingText && (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "flex-start",
+      marginBottom: 16,
+    }}
+  >
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: "50%",
+        background: "rgba(74,144,226,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 10,
+        flexShrink: 0,
+        fontSize: 16,
+      }}
+    >
+      🌊
+    </div>
+
+    <div
+      style={{
+        maxWidth: "75%",
+        padding: "12px 16px",
+        borderRadius: "18px 18px 18px 4px",
+        background: "rgba(255,255,255,0.12)",
+        border: "1px solid rgba(255,255,255,0.15)",
+        color: "rgba(255,255,255,0.92)",
+        fontSize: 14,
+        lineHeight: 1.7,
+      }}
+    >
+      {typingText}
+      <span
+        style={{
+          animation: "blink 1s infinite",
+          marginLeft: 2,
+        }}
+      >
+        |
+      </span>
+    </div>
+  </div>
+)}
         {loading && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(74,144,226,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🌊</div>
