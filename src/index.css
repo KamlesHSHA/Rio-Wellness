@@ -109,3 +109,20 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+/* ---------- Theme Variables ---------- */
+
+.light-theme{
+  --bg:#6E95E8;
+  --sidebar:rgba(255,255,255,.18);
+  --card:rgba(255,255,255,.18);
+  --text:#ffffff;
+  --subtext:#e7eefc;
+}
+
+.dark-theme{
+  --bg:#08111E;
+  --sidebar:rgba(15,25,45,.75);
+  --card:rgba(20,30,50,.68);
+  --text:#F7FAFF;
+  --subtext:#B8C6DD;
+}

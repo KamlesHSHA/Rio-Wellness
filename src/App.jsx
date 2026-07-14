@@ -1,10 +1,39 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-
+import { GoogleGenAI } from "@google/genai";
 // ── Painterly Ocean Background ─────────────────────────────────────────────
 // Clouds are rendered as soft blurred masses — feGaussianBlur dissolves hard
 // edges so they look like watercolour washes against the sky, not cartoons.
-const OceanBg = ({ variant = "day" }) => {
+const THEMES = {
+  light: {
+    glass: "rgba(255,255,255,0.12)",
+    border: "rgba(255,255,255,0.18)",
+    text: "#ffffff",
+    subText: "rgba(255,255,255,0.7)",
+    accent: "#4A90E2",
+    card: "rgba(255,255,255,0.10)"
+  },
 
+  dark: {
+    glass: "rgba(10,18,35,0.55)",
+    border: "rgba(255,255,255,0.08)",
+    text: "#F5F7FF",
+    subText: "rgba(230,235,255,0.72)",
+    accent: "#5FA8FF",
+    card: "rgba(20,32,58,0.50)"
+  }
+};
+const OceanBg = ({ variant = "day" }) => {  
+
+const isNight = variant === "night";
+
+const skyTop = isNight ? "#08111E" : "#5F84D8";
+const skyBottom = isNight ? "#13284D" : "#8EB8FF";
+
+const oceanTop = isNight ? "#0D1A33" : "#4C72D2";
+const oceanBottom = isNight ? "#1A3768" : "#7AA4F2";
+
+const sunColor = isNight ? "#F5F3D7" : "#FFF2A8";
+const cloudOpacity = isNight ? 0.18 : 0.82;
   // Each SoftCloud is a cluster of blurred ellipses composited together.
   // The trick: draw the shapes into a <g> with a blur filter applied to the group,
   // then overlay a slightly-less-blurred highlight on the upper portion.
@@ -429,15 +458,25 @@ const WaveLogo = ({ size = 32, color = "white" }) => (
 );
 
 // ── Glass Card ─────────────────────────────────────────────────────────────
-const Glass = ({ children, style = {}, className = "", onClick }) => (
+const Glass = ({
+    children,
+    style = {},
+    className = "",
+    onClick,
+    darkMode = false
+}) => (
   <div
     onClick={onClick}
     className={className}
     style={{
-      background: "rgba(255,255,255,0.12)",
+      background: darkMode
+    ? "rgba(10,18,35,0.55)"
+    : "rgba(255,255,255,0.12)",
       backdropFilter: "blur(16px)",
       WebkitBackdropFilter: "blur(16px)",
-      border: "1px solid rgba(255,255,255,0.25)",
+      border: darkMode
+    ? "1px solid rgba(255,255,255,0.08)"
+    : "1px solid rgba(255,255,255,0.25)",
       borderRadius: 20,
       ...style,
     }}
@@ -470,6 +509,7 @@ export default function RioApp() {
   const [page, setPage] = useState("landing");
   const [user, setUser] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
+  const theme = darkMode ? THEMES.dark : THEMES.light;
   const [moodEntries, setMoodEntries] = useState([
     { date: "2025-06-18", mood: 4, energy: 3, stress: 2, sleep: 4, reflection: "Had a good morning walk." },
     { date: "2025-06-19", mood: 3, energy: 2, stress: 4, sleep: 3, reflection: "Work was heavy today." },
@@ -491,33 +531,104 @@ export default function RioApp() {
   const switchTab = (navId) => { setPage("dashboard"); setActiveNav(navId); };
 
   const pages = {
-    landing: <LandingPage onNavigate={navigate} />,
-    signup: <SignupPage onNavigate={navigate} onSignup={setUser} />,
-    login: <LoginPage onNavigate={navigate} onLogin={(u) => { setUser(u); setActiveNav("home"); setPage("dashboard"); }} />,
-    onboarding: <OnboardingPage onNavigate={navigate} user={user} onUpdate={setUser} />,
-    challenges: <ChallengesPage onNavigate={navigate} user={user} onUpdate={(u) => { setUser(u); setActiveNav("home"); setPage("dashboard"); }} />,
+    landing: <LandingPage onNavigate={navigate} darkMode={darkMode} />,
+    signup: <SignupPage onNavigate={navigate} onSignup={setUser} darkMode={darkMode} />,
+    login: <LoginPage onNavigate={navigate} darkMode={darkMode} onLogin={(u) => { setUser(u); setActiveNav("home"); setPage("dashboard"); }} />,
+    onboarding: <OnboardingPage onNavigate={navigate} user={user} onUpdate={setUser} darkMode={darkMode} />,
+    challenges: <ChallengesPage onNavigate={navigate} user={user} darkMode={darkMode} onUpdate={(u) => { setUser(u); setActiveNav("home"); setPage("dashboard"); }} />,
     dashboard: (
-      <AppShell activeNav={activeNav} onNav={switchTab} user={user} darkMode={darkMode}>
-        {activeNav === "home" && <DashboardHome user={user} moodEntries={moodEntries} journalEntries={journalEntries} onNavigate={navigate} setActiveNav={switchTab} />}
-        {activeNav === "today" && <DailyCheckIn user={user} onSave={(e) => { setMoodEntries(prev => [...prev, e]); switchTab("home"); }} />}
-        {activeNav === "journal" && <JournalPage user={user} entries={journalEntries} setEntries={setJournalEntries} />}
-        {activeNav === "analytics" && <AnalyticsPage moodEntries={moodEntries} journalEntries={journalEntries} />}
-        {activeNav === "anchor" && <AnchorPage />}
-        {activeNav === "chat" && <ChatPage user={user} messages={chatMessages} setMessages={setChatMessages} />}
-        {activeNav === "settings" && <SettingsPage user={user} darkMode={darkMode} setDarkMode={setDarkMode} onLogout={() => { setUser(null); setPage("landing"); }} />}
+      <AppShell
+    activeNav={activeNav}
+    onNav={switchTab}
+    user={user}
+    darkMode={darkMode}
+    theme={theme}
+>
+       {activeNav === "home" && (
+  <DashboardHome
+    user={user}
+    moodEntries={moodEntries}
+    journalEntries={journalEntries}
+    onNavigate={navigate}
+    darkMode={darkMode}
+  />
+)}
+
+{activeNav === "today" && (
+  <DailyCheckIn
+    user={user}
+    onSave={(e) => {
+      setMoodEntries(prev => [...prev, e]);
+      switchTab("home");
+    }}
+    darkMode={darkMode}
+  />
+)}
+
+{activeNav === "journal" && (
+  <JournalPage
+    user={user}
+    entries={journalEntries}
+    setEntries={setJournalEntries}
+    darkMode={darkMode}
+  />
+)}
+
+{activeNav === "analytics" && (
+  <AnalyticsPage
+    moodEntries={moodEntries}
+    journalEntries={journalEntries}
+    darkMode={darkMode}
+  />
+)}
+
+{activeNav === "anchor" && (
+  <AnchorPage
+    darkMode={darkMode}
+  />
+)}
+
+{activeNav === "chat" && (
+  <ChatPage
+    user={user}
+    messages={chatMessages}
+    setMessages={setChatMessages}
+    darkMode={darkMode}
+  />
+)}
+
+{activeNav === "settings" && (
+  <SettingsPage
+    user={user}
+    darkMode={darkMode}
+    setDarkMode={setDarkMode}
+    onLogout={() => {
+  setUser(null);
+  setPage("landing");
+}}
+  />
+)}
       </AppShell>
     ),
   };
 
   return (
-    <div style={{ fontFamily: "'Segoe UI', system-ui, sans-serif", minHeight: "100vh", overflow: "hidden" }}>
-      {pages[page] || pages.landing}
-    </div>
-  );
+  
+  <div
+    className={darkMode ? "dark-theme" : "light-theme"}
+    style={{
+      fontFamily: "'Segoe UI', system-ui, sans-serif",
+      minHeight: "100vh",
+      overflow: "hidden"
+    }}
+  >
+    {pages[page]}
+  </div>
+);
 }
 
 // ── LANDING PAGE ───────────────────────────────────────────────────────────
-function LandingPage({ onNavigate }) {
+function LandingPage({ onNavigate,darkMode }) {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const el = document.getElementById("rio-landing");
@@ -528,7 +639,7 @@ function LandingPage({ onNavigate }) {
 
   return (
     <div id="rio-landing" style={{ position: "relative", height: "100vh", overflowY: "auto" }}>
-      <OceanBg variant="day" />
+      <OceanBg variant={darkMode ? "night" : "day"} />
 
       {/* Navbar */}
       <nav style={{
@@ -580,7 +691,8 @@ function LandingPage({ onNavigate }) {
           { icon: "📔", title: "Journaling", desc: "A safe harbour to write your thoughts, feelings, and reflections." },
           { icon: "⚓", title: "Grounding Exercises", desc: "Breathing techniques and mindfulness practices to anchor you in the moment." },
         ].map(f => (
-          <Glass key={f.title} style={{ padding: "28px 24px", textAlign: "center" }}>
+          <Glass
+    darkMode={darkMode} key={f.title} style={{ padding: "28px 24px", textAlign: "center" }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>{f.icon}</div>
             <h3 style={{ color: "white", margin: "0 0 8px", fontSize: 16, fontWeight: 700 }}>{f.title}</h3>
             <p style={{ color: "rgba(255,255,255,0.7)", margin: 0, fontSize: 13, lineHeight: 1.6 }}>{f.desc}</p>
@@ -641,11 +753,13 @@ function LoginPage({ onNavigate, onLogin }) {
   );
 }
 
-function AuthLayout({ children, title, sub, variant }) {
+function AuthLayout({ children, title, sub, variant,darkMode }) {
   return (
     <div style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <OceanBg variant={variant} />
-      <Glass style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 420, padding: "48px 40px", margin: 20 }}>
+      <Glass
+    darkMode={variant === "night"}
+     style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 420, padding: "48px 40px", margin: 20 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <WaveLogo size={36} />
           <h2 style={{ color: "white", margin: "16px 0 6px", fontSize: 24, fontWeight: 700 }}>{title}</h2>
@@ -675,12 +789,14 @@ function AuthField({ label, type, value, onChange }) {
 }
 
 // ── ONBOARDING ─────────────────────────────────────────────────────────────
-function OnboardingPage({ onNavigate, user, onUpdate }) {
+function OnboardingPage({ onNavigate, user, onUpdate,darkMode }) {
   const [name, setName] = useState(user?.name?.split(" ")[0] || "");
   return (
     <div style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <OceanBg variant="dawn" />
-      <Glass style={{ position: "relative", zIndex: 1, maxWidth: 480, width: "100%", padding: "60px 48px", margin: 20, textAlign: "center" }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ position: "relative", zIndex: 1, maxWidth: 480, width: "100%", padding: "60px 48px", margin: 20, textAlign: "center" }}>
         <WaveLogo size={40} />
         <div style={{ fontSize: 48, margin: "20px 0 8px" }}>👋</div>
         <h2 style={{ color: "white", fontSize: 26, fontWeight: 700, margin: "0 0 12px" }}>What should Rio call you?</h2>
@@ -709,13 +825,15 @@ function OnboardingPage({ onNavigate, user, onUpdate }) {
 }
 
 // ── CHALLENGES ─────────────────────────────────────────────────────────────
-function ChallengesPage({ onNavigate, user, onUpdate }) {
+function ChallengesPage({ onNavigate, user, onUpdate,darkMode }) {
   const [selected, setSelected] = useState([]);
   const toggle = (c) => setSelected(p => p.includes(c) ? p.filter(x => x !== c) : [...p, c]);
   return (
     <div style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <OceanBg variant="day" />
-      <Glass style={{ position: "relative", zIndex: 1, maxWidth: 560, width: "100%", padding: "48px 40px", margin: 20 }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ position: "relative", zIndex: 1, maxWidth: 560, width: "100%", padding: "48px 40px", margin: 20 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <h2 style={{ color: "white", fontSize: 24, fontWeight: 700, margin: "0 0 10px" }}>What brings you to Rio?</h2>
           <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, margin: 0 }}>Select all that resonate — this helps personalize your experience.</p>
@@ -750,7 +868,7 @@ function ChallengesPage({ onNavigate, user, onUpdate }) {
 }
 
 // ── APP SHELL (Dashboard Layout) ───────────────────────────────────────────
-function AppShell({ children, activeNav, onNav, user, darkMode }) {
+function AppShell({ children, activeNav, onNav, user, darkMode,theme }) {
   const navItems = [
     { id: "home", icon: "🏠", label: "Home" },
     { id: "today", icon: "☀️", label: "Today" },
@@ -764,7 +882,9 @@ function AppShell({ children, activeNav, onNav, user, darkMode }) {
     <div style={{ position: "relative", minHeight: "100vh", display: "flex" }}>
       <OceanBg variant={darkMode ? "night" : "day"} />
       {/* Sidebar */}
-      <Glass style={{ position: "fixed", left: 16, top: 16, bottom: 16, width: 220, borderRadius: 20, zIndex: 50, display: "flex", flexDirection: "column", padding: "24px 12px" }}>
+      <Glass
+   
+    darkMode={darkMode} style={{ position: "fixed", left: 16, top: 16, bottom: 16, width: 220, borderRadius: 20, zIndex: 50, display: "flex", flexDirection: "column", padding: "24px 12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 32, paddingLeft: 8 }}>
           <WaveLogo size={24} />
           <span style={{ color: "white", fontWeight: 700, fontSize: 20 }}>Rio</span>
@@ -803,7 +923,7 @@ function AppShell({ children, activeNav, onNav, user, darkMode }) {
 }
 
 // ── DASHBOARD HOME ─────────────────────────────────────────────────────────
-function DashboardHome({ user, moodEntries, journalEntries, onNavigate, setActiveNav }) {
+function DashboardHome({ user, moodEntries, journalEntries, onNavigate, setActiveNav,darkMode }) {
   const latest = moodEntries[moodEntries.length - 1];
   const streak = 6;
   const hour = new Date().getHours();
@@ -813,24 +933,32 @@ function DashboardHome({ user, moodEntries, journalEntries, onNavigate, setActiv
   return (
     <div>
       {/* Welcome */}
-      <Glass style={{ padding: "28px 32px", marginBottom: 20 }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "28px 32px", marginBottom: 20 }}>
         <h2 style={{ color: "white", margin: "0 0 6px", fontSize: 26, fontWeight: 700 }}>{greeting}, {user?.nickname || "Friend"} 🌊</h2>
         <p style={{ color: "rgba(255,255,255,0.7)", margin: 0, fontSize: 14 }}>How are the waters of your mind today?</p>
       </Glass>
 
       {/* Stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
-        <Glass style={{ padding: "20px 24px" }}>
+        <Glass
+    
+    darkMode={darkMode} style={{ padding: "20px 24px" }}>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 8 }}>CURRENT MOOD</div>
           <div style={{ fontSize: 36 }}>{moodObj.emoji}</div>
           <div style={{ color: "white", fontSize: 14, fontWeight: 600, marginTop: 4 }}>{moodObj.label}</div>
         </Glass>
-        <Glass style={{ padding: "20px 24px" }}>
+        <Glass
+    
+    darkMode={darkMode} style={{ padding: "20px 24px" }}>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 8 }}>CURRENT STREAK</div>
           <div style={{ color: "white", fontSize: 40, fontWeight: 700, lineHeight: 1 }}>{streak}</div>
           <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>days 🔥</div>
         </Glass>
-        <Glass style={{ padding: "20px 24px" }}>
+        <Glass
+    
+    darkMode={darkMode} style={{ padding: "20px 24px" }}>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 8 }}>JOURNAL ENTRIES</div>
           <div style={{ color: "white", fontSize: 40, fontWeight: 700, lineHeight: 1 }}>{journalEntries.length}</div>
           <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 4 }}>this month</div>
@@ -839,7 +967,9 @@ function DashboardHome({ user, moodEntries, journalEntries, onNavigate, setActiv
 
       {/* Latest journal */}
       {journalEntries[0] && (
-        <Glass style={{ padding: "24px 28px", marginBottom: 20 }}>
+        <Glass
+    
+    darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20 }}>
           <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 12 }}>LATEST JOURNAL ENTRY</div>
           <h3 style={{ color: "white", margin: "0 0 8px", fontSize: 16, fontWeight: 600 }}>{journalEntries[0].title}</h3>
           <p style={{ color: "rgba(255,255,255,0.65)", margin: "0 0 12px", fontSize: 13, lineHeight: 1.6 }}>{journalEntries[0].content.slice(0, 120)}...</p>
@@ -848,7 +978,9 @@ function DashboardHome({ user, moodEntries, journalEntries, onNavigate, setActiv
       )}
 
       {/* Quick Actions */}
-      <Glass style={{ padding: "24px 28px" }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "24px 28px" }}>
         <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginBottom: 16 }}>QUICK ACTIONS</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
@@ -875,18 +1007,20 @@ function DashboardHome({ user, moodEntries, journalEntries, onNavigate, setActiv
 }
 
 // ── DAILY CHECK-IN ─────────────────────────────────────────────────────────
-function DailyCheckIn({ user, onSave }) {
+function DailyCheckIn({ user, onSave,darkMode }) {
   const [form, setForm] = useState({ mood: 3, energy: 3, stress: 3, sleep: 3, reflection: "" });
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   return (
     <div>
-      <Glass style={{ padding: "28px 32px", marginBottom: 20 }}>
+      <Glass
+    darkMode={darkMode} style={{ padding: "28px 32px", marginBottom: 20 }}>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 22, fontWeight: 700 }}>Daily Check-In ☀️</h2>
         <p style={{ color: "rgba(255,255,255,0.6)", margin: 0, fontSize: 14 }}>A moment to reflect on how you're doing today</p>
       </Glass>
 
-      <Glass style={{ padding: "28px 32px", marginBottom: 20 }}>
+      <Glass
+    darkMode={darkMode} style={{ padding: "28px 32px", marginBottom: 20 }}>
         <h3 style={{ color: "white", margin: "0 0 20px", fontSize: 16, fontWeight: 600 }}>How are you feeling right now?</h3>
         <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
           {MOODS.map(m => (
@@ -912,7 +1046,8 @@ function DailyCheckIn({ user, onSave }) {
         { key: "stress", label: "Stress Level", emoji: "🌊", desc: ["None", "Mild", "Moderate", "High", "Very High"] },
         { key: "sleep", label: "Sleep Quality", emoji: "🌙", desc: ["Terrible", "Poor", "Okay", "Good", "Excellent"] },
       ].map(({ key, label, emoji, desc }) => (
-        <Glass key={key} style={{ padding: "24px 28px", marginBottom: 16 }}>
+        <Glass
+    darkMode={darkMode} key={key} style={{ padding: "24px 28px", marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ color: "white", margin: 0, fontSize: 15, fontWeight: 600 }}>{emoji} {label}</h3>
             <span style={{ color: "#D9ECFF", fontSize: 14, fontWeight: 600 }}>{desc[form[key] - 1]}</span>
@@ -933,7 +1068,8 @@ function DailyCheckIn({ user, onSave }) {
         </Glass>
       ))}
 
-      <Glass style={{ padding: "24px 28px", marginBottom: 20 }}>
+      <Glass
+    darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20 }}>
         <h3 style={{ color: "white", margin: "0 0 12px", fontSize: 15, fontWeight: 600 }}>📝 Reflection Notes</h3>
         <textarea
           value={form.reflection}
@@ -958,7 +1094,7 @@ function DailyCheckIn({ user, onSave }) {
 }
 
 // ── JOURNAL PAGE ───────────────────────────────────────────────────────────
-function JournalPage({ user, entries, setEntries }) {
+function JournalPage({ user, entries, setEntries,darkMode }) {
   const [view, setView] = useState("list");
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState("");
@@ -984,13 +1120,15 @@ function JournalPage({ user, entries, setEntries }) {
 
   if (view === "edit") return (
     <div>
-      <Glass style={{ padding: "28px 32px", marginBottom: 20 }}>
+      <Glass
+    darkMode={darkMode} style={{ padding: "28px 32px", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <button onClick={() => setView("list")} style={{ ...btnOutline, padding: "8px 16px", fontSize: 13 }}>← Back</button>
           <h2 style={{ color: "white", margin: 0, fontSize: 22, fontWeight: 700 }}>{editing ? "Edit Entry" : "New Entry"} 📔</h2>
         </div>
       </Glass>
-      <Glass style={{ padding: "28px 32px" }}>
+      <Glass
+    darkMode={darkMode} style={{ padding: "28px 32px" }}>
         <input
           value={form.title}
           onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
@@ -1021,7 +1159,8 @@ function JournalPage({ user, entries, setEntries }) {
 
   return (
     <div>
-      <Glass style={{ padding: "24px 28px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <Glass
+    darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 22, fontWeight: 700 }}>Safe Harbour Journal 📔</h2>
           <p style={{ color: "rgba(255,255,255,0.6)", margin: 0, fontSize: 14 }}>Your private space for thoughts and reflections</p>
@@ -1029,7 +1168,8 @@ function JournalPage({ user, entries, setEntries }) {
         <button onClick={openNew} style={{ ...btnPrimary, padding: "10px 20px", fontSize: 14, borderRadius: 10 }}>+ New Entry</button>
       </Glass>
 
-      <Glass style={{ padding: "16px 20px", marginBottom: 20 }}>
+      <Glass
+    darkMode={darkMode} style={{ padding: "16px 20px", marginBottom: 20 }}>
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -1042,13 +1182,16 @@ function JournalPage({ user, entries, setEntries }) {
       </Glass>
 
       {filtered.length === 0 ? (
-        <Glass style={{ padding: "48px", textAlign: "center" }}>
+        <Glass
+    darkMode={darkMode} style={{ padding: "48px", textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
           <p style={{ color: "rgba(255,255,255,0.6)", margin: 0 }}>No entries yet. Start writing your first reflection.</p>
         </Glass>
       ) : (
         filtered.map(entry => (
-          <Glass key={entry.id} style={{ padding: "24px 28px", marginBottom: 14 }}>
+          <Glass    
+
+    darkMode={darkMode} key={entry.id} style={{ padding: "24px 28px", marginBottom: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ flex: 1 }}>
                 <h3 style={{ color: "white", margin: "0 0 8px", fontSize: 16, fontWeight: 600 }}>{entry.title}</h3>
@@ -1068,7 +1211,7 @@ function JournalPage({ user, entries, setEntries }) {
 }
 
 // ── ANALYTICS ─────────────────────────────────────────────────────────────
-function AnalyticsPage({ moodEntries, journalEntries }) {
+function AnalyticsPage({ moodEntries, journalEntries,darkMode }) {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const moodData = moodEntries.slice(-6).map((e, i) => ({ day: days[i], mood: e.mood, stress: e.stress, sleep: e.sleep }));
   const avgMood = (moodEntries.reduce((s, e) => s + e.mood, 0) / moodEntries.length).toFixed(1);
@@ -1083,14 +1226,18 @@ function AnalyticsPage({ moodEntries, journalEntries }) {
 
   return (
     <div>
-      <Glass style={{ padding: "24px 28px", marginBottom: 20 }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20 }}>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 22, fontWeight: 700 }}>Analytics 📊</h2>
         <p style={{ color: "rgba(255,255,255,0.6)", margin: 0, fontSize: 14 }}>Your wellness patterns at a glance</p>
       </Glass>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
         {[{ label: "Avg Mood", value: avgMood, emoji: "😊" }, { label: "Avg Stress", value: avgStress, emoji: "🌊" }, { label: "Avg Sleep", value: avgSleep, emoji: "🌙" }].map(s => (
-          <Glass key={s.label} style={{ padding: "20px 24px", textAlign: "center" }}>
+          <Glass
+    
+    darkMode={darkMode} key={s.label} style={{ padding: "20px 24px", textAlign: "center" }}>
             <div style={{ fontSize: 28 }}>{s.emoji}</div>
             <div style={{ color: "white", fontSize: 30, fontWeight: 700, margin: "8px 0 4px" }}>{s.value}</div>
             <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>{s.label} / 5</div>
@@ -1099,12 +1246,16 @@ function AnalyticsPage({ moodEntries, journalEntries }) {
       </div>
 
       {/* Mood chart */}
-      <Glass style={{ padding: "24px 28px", marginBottom: 20 }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20 }}>
         <h3 style={{ color: "white", margin: "0 0 20px", fontSize: 15, fontWeight: 600 }}>Weekly Mood Trend</h3>
         <MiniBarChart data={moodData} key1="mood" color="#4A90E2" label="Mood" />
       </Glass>
 
-      <Glass style={{ padding: "24px 28px", marginBottom: 20 }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20 }}>
         <h3 style={{ color: "white", margin: "0 0 20px", fontSize: 15, fontWeight: 600 }}>Stress & Sleep Trends</h3>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <div>
@@ -1118,7 +1269,9 @@ function AnalyticsPage({ moodEntries, journalEntries }) {
         </div>
       </Glass>
 
-      <Glass style={{ padding: "24px 28px" }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "24px 28px" }}>
         <h3 style={{ color: "white", margin: "0 0 16px", fontSize: 15, fontWeight: 600 }}>💡 Insights</h3>
         {insights.map((ins, i) => (
           <div key={i} style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,0.08)", marginBottom: 10, color: "rgba(255,255,255,0.85)", fontSize: 13, lineHeight: 1.6 }}>
@@ -1145,7 +1298,7 @@ function MiniBarChart({ data, key1, color }) {
 }
 
 // ── ANCHOR (Grounding Exercises) ───────────────────────────────────────────
-function AnchorPage() {
+function AnchorPage({darkMode}) {
   const [active, setActive] = useState(null);
   const exercises = [
     { id: "box", icon: "◻️", title: "Box Breathing", desc: "4-4-4-4 pattern to calm your nervous system", duration: "4 min", component: BoxBreathing },
@@ -1160,23 +1313,31 @@ function AnchorPage() {
     const Comp = ex.component;
     return (
       <div>
-        <Glass style={{ padding: "20px 28px", marginBottom: 20, display: "flex", alignItems: "center", gap: 16 }}>
+        <Glass
+    
+    darkMode={darkMode} style={{ padding: "20px 28px", marginBottom: 20, display: "flex", alignItems: "center", gap: 16 }}>
           <button onClick={() => setActive(null)} style={{ ...btnOutline, padding: "8px 16px", fontSize: 13 }}>← Back</button>
           <h2 style={{ color: "white", margin: 0, fontSize: 20, fontWeight: 700 }}>{ex.icon} {ex.title}</h2>
         </Glass>
-        <Glass style={{ padding: "32px" }}><Comp /></Glass>
+        <Glass
+    
+    darkMode={darkMode} style={{ padding: "32px" }}><Comp /></Glass>
       </div>
     );
   }
 
   return (
     <div>
-      <Glass style={{ padding: "24px 28px", marginBottom: 20 }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20 }}>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 22, fontWeight: 700 }}>Anchor ⚓</h2>
         <p style={{ color: "rgba(255,255,255,0.6)", margin: 0, fontSize: 14 }}>Grounding exercises to bring you back to shore</p>
       </Glass>
       {exercises.map(ex => (
-        <Glass key={ex.id} onClick={() => setActive(ex.id)} style={{ padding: "20px 24px", marginBottom: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 20, transition: "transform 0.15s" }}>
+        <Glass
+    
+    darkMode={darkMode} key={ex.id} onClick={() => setActive(ex.id)} style={{ padding: "20px 24px", marginBottom: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 20, transition: "transform 0.15s" }}>
           <div style={{ fontSize: 36 }}>{ex.icon}</div>
           <div style={{ flex: 1 }}>
             <h3 style={{ color: "white", margin: "0 0 4px", fontSize: 15, fontWeight: 600 }}>{ex.title}</h3>
@@ -1352,9 +1513,12 @@ function EmergencyCalm() {
     </div>
   );
 }
-
+const ai = new GoogleGenAI({
+  apiKey: import.meta.env.VITE_GEMINI_API_KEY,
+});
 // ── CHAT PAGE ──────────────────────────────────────────────────────────────
-function ChatPage({ user, messages, setMessages }) {
+function ChatPage({ user, messages, setMessages,darkMode }) {
+  console.log("ChatPage darkMode:", darkMode);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
@@ -1362,40 +1526,79 @@ function ChatPage({ user, messages, setMessages }) {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const send = useCallback(async (text) => {
-    const msg = text || input.trim();
-    if (!msg || loading) return;
-    setInput("");
-    setMessages(prev => [...prev, { role: "user", content: msg }]);
-    setLoading(true);
-    try {
-      const history = [...messages, { role: "user", content: msg }];
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-       
-          messages: history,
-          user,
-        })
-      });
-      const data = await res.json();
-      const reply = data.reply;
-      setMessages(prev => [...prev, { role: "assistant", content: reply }]);
-    } catch {
-      setMessages(prev => [...prev, { role: "assistant", content: "I'm having trouble connecting right now. Please take a slow breath — I'll be back with you shortly. 🌊" }]);
-    }
+  const msg = text || input.trim();
+
+  if (!msg || loading) return;
+
+  setInput("");
+
+  const history = [...messages, { role: "user", content: msg }];
+
+  setMessages(history);
+  setLoading(true);
+
+  try {
+    const prompt = `
+You are Rio, an empathetic AI wellness companion.
+
+Rules:
+- Never diagnose diseases.
+- Never replace therapy.
+- Be warm and calming.
+- Validate feelings before giving advice.
+- Keep responses under 200 words.
+- Suggest breathing, journaling or grounding when appropriate.
+- Speak naturally and conversationally.
+- Address the user as ${user?.nickname || "Friend"}.
+
+User:
+${msg}
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    const reply = response.text;
+
+    setMessages(prev => [
+      ...prev,
+      {
+        role: "assistant",
+        content: reply,
+      },
+    ]);
+  } catch (err) {
+    console.error(err);
+
+    setMessages(prev => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          "I'm having trouble connecting right now. Please take a slow breath — I'll be back with you shortly. 🌊",
+      },
+    ]);
+  } finally {
     setLoading(false);
-  }, [input, loading, messages, setMessages, user]);
+  }
+}, [input, loading, messages, setMessages, user]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 48px)" }}>
-      <Glass style={{ padding: "20px 28px", marginBottom: 16, flexShrink: 0 }}>
+      <Glass
+    darkMode={darkMode} 
+    style={{ padding: "20px 28px", marginBottom: 16, flexShrink: 0 }}>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 20, fontWeight: 700 }}>Chat with Rio 💬</h2>
         <p style={{ color: "rgba(255,255,255,0.6)", margin: 0, fontSize: 13 }}>A safe space for honest conversations</p>
       </Glass>
 
       {/* Messages */}
-      <Glass style={{ flex: 1, overflowY: "auto", padding: "20px 24px", marginBottom: 16 }}>
+      <Glass
+    
+    darkMode={darkMode} 
+    style={{ flex: 1, overflowY: "auto", padding: "20px 24px", marginBottom: 16 }}>
         {messages.map((m, i) => (
           <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 16 }}>
             {m.role === "assistant" && (
@@ -1427,7 +1630,10 @@ function ChatPage({ user, messages, setMessages }) {
 
       {/* Suggested prompts */}
       {messages.length <= 2 && (
-        <Glass style={{ padding: "12px 16px", marginBottom: 12, flexShrink: 0 }}>
+        <Glass
+    
+    darkMode={darkMode} 
+    style={{ padding: "12px 16px", marginBottom: 12, flexShrink: 0 }}>
           <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginBottom: 8 }}>SUGGESTED</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {SUGGESTED_PROMPTS.map(p => (
@@ -1441,7 +1647,10 @@ function ChatPage({ user, messages, setMessages }) {
       )}
 
       {/* Input */}
-      <Glass style={{ padding: "12px 16px", display: "flex", gap: 12, alignItems: "flex-end", flexShrink: 0 }}>
+      <Glass
+    
+    darkMode={darkMode} 
+    style={{ padding: "12px 16px", display: "flex", gap: 12, alignItems: "flex-end", flexShrink: 0 }}>
         <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
@@ -1469,14 +1678,19 @@ function ChatPage({ user, messages, setMessages }) {
 // ── SETTINGS ───────────────────────────────────────────────────────────────
 function SettingsPage({ user, darkMode, setDarkMode, onLogout }) {
   const [notifs, setNotifs] = useState(true);
+  console.log("Dark Mode:", darkMode);
   return (
     <div>
-      <Glass style={{ padding: "24px 28px", marginBottom: 20 }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 20 }}>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 22, fontWeight: 700 }}>Settings ⚙️</h2>
         <p style={{ color: "rgba(255,255,255,0.6)", margin: 0, fontSize: 14 }}>Customize your Rio experience</p>
       </Glass>
 
-      <Glass style={{ padding: "24px 28px", marginBottom: 16 }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "24px 28px", marginBottom: 16 }}>
         <h3 style={{ color: "white", margin: "0 0 20px", fontSize: 15, fontWeight: 600 }}>Profile</h3>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
           <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(74,144,226,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "white", fontWeight: 700 }}>
@@ -1500,7 +1714,9 @@ function SettingsPage({ user, darkMode, setDarkMode, onLogout }) {
       </Glass>
 
       {/* Notifications toggle */}
-      <Glass style={{ padding: "20px 24px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "20px 24px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ color: "white", fontSize: 14, fontWeight: 600, marginBottom: 2 }}>Daily Reminders</div>
           <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>Get a gentle nudge for your daily check-in</div>
@@ -1514,7 +1730,9 @@ function SettingsPage({ user, darkMode, setDarkMode, onLogout }) {
       </Glass>
 
       {/* Dark Mode toggle — switches to full night ocean scene */}
-      <Glass style={{ padding: "20px 24px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "20px 24px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ color: "white", fontSize: 14, fontWeight: 600, marginBottom: 2 }}>
             {darkMode ? "🌙 Night Mode" : "☀️ Day Mode"}
@@ -1531,7 +1749,9 @@ function SettingsPage({ user, darkMode, setDarkMode, onLogout }) {
         </div>
       </Glass>
 
-      <Glass style={{ padding: "16px 24px", marginBottom: 12 }}>
+      <Glass
+    
+    darkMode={darkMode} style={{ padding: "16px 24px", marginBottom: 12 }}>
         <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginBottom: 12 }}>EMERGENCY RESOURCES</div>
         <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 1.7, margin: 0 }}>
           If you're in crisis, please reach out: <strong style={{ color: "white" }}>iCall: 9152987821</strong> · <strong style={{ color: "white" }}>Vandrevala Foundation: 1860-2662-345</strong> (24/7)
