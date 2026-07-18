@@ -509,6 +509,16 @@ export default function RioApp() {
   const [page, setPage] = useState("landing");
   const [user, setUser] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+useEffect(() => {
+  const handleResize = () => {
+    setIsMobile(window.innerWidth <= 768);
+  };
+
+  window.addEventListener("resize", handleResize);
+
+  return () => window.removeEventListener("resize", handleResize);
+}, []);
   const theme = darkMode ? THEMES.dark : THEMES.light;
   const [moodEntries, setMoodEntries] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
@@ -533,6 +543,7 @@ export default function RioApp() {
     user={user}
     darkMode={darkMode}
     theme={theme}
+    isMobile={isMobile}
 >
        {activeNav === "home" && (
   <DashboardHome
@@ -584,6 +595,7 @@ export default function RioApp() {
     messages={chatMessages}
     setMessages={setChatMessages}
     darkMode={darkMode}
+    isMobile={isMobile}
   />
 )}
 
@@ -858,7 +870,7 @@ function ChallengesPage({ onNavigate, user, onUpdate,darkMode }) {
 }
 
 // ── APP SHELL (Dashboard Layout) ───────────────────────────────────────────
-function AppShell({ children, activeNav, onNav, user, darkMode,theme }) {
+function AppShell({ children, activeNav, onNav, user, darkMode,theme,isMobile }) {
   const navItems = [
     { id: "home", icon: "🏠", label: "Home" },
     { id: "today", icon: "☀️", label: "Today" },
@@ -874,7 +886,19 @@ function AppShell({ children, activeNav, onNav, user, darkMode,theme }) {
       {/* Sidebar */}
       <Glass
    
-    darkMode={darkMode} style={{ position: "fixed", left: 16, top: 16, bottom: 16, width: 220, borderRadius: 20, zIndex: 50, display: "flex", flexDirection: "column", padding: "24px 12px" }}>
+    style={{
+    position: "fixed",
+    left: 16,
+    top: 16,
+    bottom: 16,
+    width: 220,
+    borderRadius: 20,
+    zIndex: 50,
+    display: isMobile ? "none" : "flex",
+    flexDirection: "column",
+    padding: isMobile ? "16px 16px 90px" : "24px 24px 24px 0",
+    transition: "left 0.3s ease",
+}}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 32, paddingLeft: 8 }}>
           <WaveLogo size={24} />
           <span style={{ color: "white", fontWeight: 700, fontSize: 20 }}>Rio</span>
@@ -905,9 +929,80 @@ function AppShell({ children, activeNav, onNav, user, darkMode,theme }) {
         </div>
       </Glass>
       {/* Main */}
-      <div style={{ marginLeft: 252, flex: 1, padding: "24px 24px 24px 0", overflowY: "auto", position: "relative", zIndex: 1, minHeight: "100vh" }}>
+      <div
+  style={{
+    marginLeft: isMobile ? 0 : 252,
+    flex: 1,
+    padding: isMobile
+      ? "16px 16px 100px"
+      : "24px 24px 24px 0",
+    overflowY: "auto",
+    position: "relative",
+    zIndex: 1,
+    minHeight: "100vh",
+  }}
+>
+
         {children}
       </div>
+      {isMobile && (
+  <Glass
+    darkMode={darkMode}
+    style={{
+      position: "fixed",
+      left: 12,
+      right: 12,
+      bottom: 12,
+      height: 70,
+      borderRadius: 22,
+      display: "flex",
+      justifyContent: "space-around",
+      alignItems: "center",
+      zIndex: 100,
+      padding: "0 8px",
+    }}
+  >
+    {navItems
+  .filter(item =>
+    ["home", "today", "chat", "journal", "settings"].includes(item.id)
+  ).map(item => (
+      <div
+        key={item.id}
+        onClick={() => onNav(item.id)}
+        style={{
+          flex: 1,
+          textAlign: "center",
+          cursor: "pointer",
+          color:
+            activeNav === item.id
+              ? "#ffffff"
+              : "rgba(255,255,255,0.6)",
+        }}
+      >
+        <div style={{
+    fontSize: item.id === "chat" ? 28 : 22,
+    transition: "all .25s ease",
+    transform:
+      activeNav === item.id
+        ? "translateY(-2px)"
+        : "translateY(0)",
+  }}
+>
+  {item.icon}
+        </div>
+
+        <div
+          style={{
+            fontSize: 10,
+            marginTop: 4,
+          }}
+        >
+          {item.id === "chat" ? "Rio" : item.label}
+        </div>
+      </div>
+    ))}
+  </Glass>
+)}
     </div>
   );
 }
@@ -1648,7 +1743,7 @@ const ai = new GoogleGenAI({
   apiKey: import.meta.env.VITE_GEMINI_API_KEY,
 });
 // ── CHAT PAGE ──────────────────────────────────────────────────────────────
-function ChatPage({ user, messages, setMessages,darkMode }) {
+function ChatPage({ user, messages, setMessages,darkMode,isMobile }) {
   console.log("ChatPage darkMode:", darkMode);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1931,6 +2026,7 @@ for (let i = 0; i <= reply.length; i++) {
   await new Promise(resolve => setTimeout(resolve, 18));
 }
 
+    setTypingText("");
 
     setMessages(prev => [
       ...prev,
@@ -1956,10 +2052,26 @@ for (let i = 0; i <= reply.length; i++) {
 }, [input, loading, messages, setMessages, user]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 48px)" }}>
+   <div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    height: isMobile
+  ? "calc(100vh - 130px)"
+  : "calc(100vh - 48px)",
+    minHeight: 0,
+  }}
+>
       <Glass
     darkMode={darkMode} 
-    style={{ padding: "20px 28px", marginBottom: 16, flexShrink: 0 }}>
+  style={{
+    padding: "12px 16px",
+    display: "flex",
+    gap: 12,
+    alignItems: "flex-end",
+    flexShrink: 0,
+    marginBottom: isMobile ? 90 : 0,
+  }}>
         <h2 style={{ color: "white", margin: "0 0 4px", fontSize: 20, fontWeight: 700 }}>Chat with Rio 💬</h2>
         <p style={{ color: "rgba(255,255,255,0.6)", margin: 0, fontSize: 13 }}>A safe space for honest conversations</p>
       </Glass>
@@ -1968,14 +2080,20 @@ for (let i = 0; i <= reply.length; i++) {
       <Glass
     
     darkMode={darkMode} 
-    style={{ flex: 1, overflowY: "auto", padding: "20px 24px", marginBottom: 16 }}>
+        style={{
+        flex: 1,
+        overflowY: "auto",
+        padding: isMobile ? "12px" : "20px 24px",
+        marginBottom: isMobile ? 12 : 16,
+    }}
+>
         {messages.map((m, i) => (
           <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 16 }}>
             {m.role === "assistant" && (
               <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(74,144,226,0.5)", display: "flex", alignItems: "center", justifyContent: "center", marginRight: 10, flexShrink: 0, fontSize: 16 }}>🌊</div>
             )}
             <div style={{
-              maxWidth: "75%", padding: "12px 16px", borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+              maxWidth: isMobile ? "88%" : "75%" , padding: "12px 16px", borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
               background: m.role === "user" ? "rgba(74,144,226,0.5)" : "rgba(255,255,255,0.12)",
               border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.92)", fontSize: 14, lineHeight: 1.7
             }}>
@@ -2010,7 +2128,7 @@ for (let i = 0; i <= reply.length; i++) {
 
     <div
       style={{
-        maxWidth: "75%",
+        maxWidth: isMobile ? "88%" : "75%",
         padding: "12px 16px",
         borderRadius: "18px 18px 18px 4px",
         background: "rgba(255,255,255,0.12)",
